@@ -6,18 +6,18 @@ apt-get update -qq
 
 # ── 1. Install telnetd (intentionally insecure service) ──────────────────────
 echo "[*] Installing telnet server..."
-apt-get install -y telnetd xinetd 2>/dev/null || \
-apt-get install -y inetutils-inetd inetutils-telnetd
+apt-get install -y telnetd xinetd 2>/dev/null ||
+  apt-get install -y inetutils-inetd inetutils-telnetd
 
 # ── 2. Configure xinetd for telnet ───────────────────────────────────────────
-cat > /etc/xinetd.d/telnet <<'EOF'
+cat >/etc/xinetd.d/telnet <<'EOF'
 service telnet
 {
     flags           = REUSE
     socket_type     = stream
     wait            = no
     user            = root
-    server          = /usr/sbin/in.telnetd
+    server          = /usr/sbin/telnetd
     log_on_failure  += USERID
     disable         = no
 }
@@ -39,13 +39,13 @@ echo "root:toor" | chpasswd
 
 # ── 5. Plant the flag ────────────────────────────────────────────────────────
 echo "[*] Planting flag..."
-echo "FLAG{telnet_cleartext_r00t_bypass_lab}" > /root/flag.txt
+echo "FLAG{telnet_cleartext_r00t_bypass_lab}" >/root/flag.txt
 chmod 600 /root/flag.txt
 
 # Hint for the student user
 mkdir -p /home/student
 echo "Hint: services running on this machine may expose credentials in cleartext." \
-  > /home/student/readme.txt
+  >/home/student/readme.txt
 chown student:student /home/student/readme.txt
 
 # ── 6. Disable firewall restrictions for lab ─────────────────────────────────
