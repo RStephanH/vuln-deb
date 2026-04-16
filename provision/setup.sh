@@ -1,60 +1,142 @@
 #!/bin/bash
 set -e
 
+# ─────────────────────────────────────────────
+# VULNERABLE TELNET LAB SETUP SCRIPT
+# ─────────────────────────────────────────────
+# This script creates a vulnerable environment
+# for testing telnet-based exploits (LAB ONLY)
+# ─────────────────────────────────────────────
+
+# ─────────────────────────────────────────────
+# 1. SYSTEM PREPARATION
+# ─────────────────────────────────────────────
 echo "[*] Updating packages..."
 apt-get update -qq
 
-# ── 1. Install telnetd (intentionally insecure service) ──────────────────────
-echo "[*] Installing telnet server..."
-apt-get install -y telnetd xinetd 2>/dev/null ||
-  apt-get install -y inetutils-inetd inetutils-telnetd
+echo "[*] Installing build tools and dependencies..."
+apt-get install -y build-essential wget libpam0g-dev
 
-# ── 2. Configure xinetd for telnet ───────────────────────────────────────────
-cat >/etc/xinetd.d/telnet <<'EOF'
-service telnet
-{
-    flags           = REUSE
-    socket_type     = stream
-    wait            = no
-    user            = root
-    server          = /usr/sbin/telnetd
-    log_on_failure  += USERID
-    disable         = no
-}
-EOF
+echo "[*] Installing openbsd-inetd (inet daemon)..."
+apt-get install -y openbsd-inetd
 
-# ── 3. Restart xinetd ────────────────────────────────────────────────────────
-systemctl enable xinetd
-systemctl restart xinetd
+# ─────────────────────────────────────────────
+# 2. REMOVE SECURE TELNET PACKAGES
+# ─────────────────────────────────────────────
+echo "[*] Removing secure telnet packages..."
+apt-get remove -y inetutils-telnetd telnetd xinetd || true
 
-# ── 4. Create vulnerable users ───────────────────────────────────────────────
-echo "[*] Creating users with weak credentials..."
+# ─────────────────────────────────────────────
+# 3. COMPILE & INSTALL VULNERABLE INETUTILS
+# ─────────────────────────────────────────────
+echo "[*] Installing vulnerable GNU InetUtils 2.7..."
 
-# Unprivileged user with weak password
+# Download and verify pinned vulnerable version
+cd /tmp
+INETUTILS_VERSION="2.7"
+INETUTILS_TARBALL="inetutils-${INETUTILS_VERSION}.tar.gz"
+INETUTILS_URL="https://ftp.gnu.org/gnu/inetutils/${INETUTILS_TARBALL}"
+INETUTILS_SHA256="REPLACE_WITH_OFFICIAL_SHA256_FOR_INETUTILS_2_7_TARBALL"
+
+wget -O "${INETUTILS_TARBALL}" "${INETUTILS_URL}"
+echo "${INETUTILS_SHA256}  ${INETUTILS_TARBALL}" | sha256sum -c -
+tar xzf "${INETUTILS_TARBALL}"
+cd "inetutils-${INETUTILS_VERSION}"
+
+# Configure, compile, and install
+./configure --prefix=/usr/local
+make -j$(nproc)
+make install
+
+# telnetd is started later as a standalone systemd service.
+# Do not also register it with inetd, or both services will
+# compete for port 23 and one of them will fail to start.
+
+# ─────────────────────────────────────────────
+# 4. CREATE WEAK USER ACCOUNTS
+# ─────────────────────────────────────────────
+echo "[*] Creating user accounts with weak credentials..."
+
+# Create student user with default password
 useradd -m -s /bin/bash student 2>/dev/null || true
 echo "student:student123" | chpasswd
 
-# Root with weak password (intentional for lab)
+# Set weak root password for testing
 echo "root:toor" | chpasswd
 
-# ── 5. Plant the flag ────────────────────────────────────────────────────────
-echo "[*] Planting flag..."
-echo "FLAG{telnet_cleartext_r00t_bypass_lab}" >/root/flag.txt
+# ─────────────────────────────────────────────
+# 5. WEAKEN SECURITY SETTINGS (LAB ENVIRONMENT ONLY ⚠️)
+# ─────────────────────────────────────────────
+echo "[*] Configuring PAM for telnet root access..."
+
+# No /etc/securetty changes are needed here because pam_securetty
+# is disabled below to allow root telnet access.
+
+# Disable pam_securetty restriction to allow root telnet access
+sed -i 's/^auth.*pam_securetty.so/#&/' /etc/pam.d/login || true
+
+# ─────────────────────────────────────────────
+# 6. SETUP TELNETD SERVICE & STARTUP
+# ─────────────────────────────────────────────
+echo "[*] Creating telnetd startup script..."
+
+# Create daemon startup script
+cat <<'EOF' >/usr/local/bin/start-telnetd.sh
+#!/bin/bash
+pkill telnetd || true
+
+echo "[*] Starting telnetd (daemon mode)..."
+exec /usr/local/libexec/telnetd -D
+EOF
+
+chmod +x /usr/local/bin/start-telnetd.sh
+
+# Create systemd service for auto-start on boot
+cat <<'EOF' >/etc/systemd/system/vuln-telnet.service
+[Unit]
+Description=Vulnerable Telnet Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/start-telnetd.sh
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Register and start the vulnerable telnet service
+echo "[*] Enabling telnet service..."
+systemctl daemon-reload
+systemctl enable vuln-telnet
+systemctl start vuln-telnet
+
+# Enable and restart inet daemon
+systemctl enable openbsd-inetd
+systemctl restart openbsd-inetd
+
+# ─────────────────────────────────────────────
+# 7. PLANT FLAG & HINTS
+# ─────────────────────────────────────────────
+echo "[*] Planting flag and hints..."
+
+# Create flag file (restricted to root only)
+echo "FLAG{telnet_rce_root_bypass}" >/root/flag.txt
 chmod 600 /root/flag.txt
 
-# Hint for the student user
-mkdir -p /home/student
-echo "Hint: services running on this machine may expose credentials in cleartext." \
+# Create readme hint for the student user
+echo "Hint: USER env injection may lead to authentication bypass." \
   >/home/student/readme.txt
 chown student:student /home/student/readme.txt
 
-# ── 6. Disable firewall restrictions for lab ─────────────────────────────────
-# (no iptables rules — VM is isolated by host-only network anyway)
-
+# ─────────────────────────────────────────────
+# SETUP COMPLETE
+# ─────────────────────────────────────────────
 echo ""
 echo "============================================"
 echo "  Vulnerable Telnet Lab Ready!"
 echo "  Target IP : 192.168.56.10"
-echo "  Port      : 23 (telnet)"
-echo "  Objective : Read /root/flag.txt"
+echo "  Port      : 23"
+echo "  Exploit   : USER='-f root' telnet -a IP"
 echo "============================================"
