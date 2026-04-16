@@ -102,7 +102,6 @@ EOF
 
 # Register and start the vulnerable telnet service
 echo "[*] Enabling telnet service..."
-systemctl daemon-reexec
 systemctl daemon-reload
 systemctl enable vuln-telnet
 systemctl start vuln-telnet
