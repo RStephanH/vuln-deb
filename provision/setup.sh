@@ -82,7 +82,7 @@ cat <<'EOF' >/usr/local/bin/start-telnetd.sh
 pkill telnetd || true
 
 echo "[*] Starting telnetd (daemon mode)..."
-/usr/local/libexec/telnetd -D
+exec /usr/local/libexec/telnetd -D
 EOF
 
 chmod +x /usr/local/bin/start-telnetd.sh
@@ -94,7 +94,7 @@ Description=Vulnerable Telnet Server
 After=network.target
 
 [Service]
-Type=forking
+Type=simple
 ExecStart=/usr/local/bin/start-telnetd.sh
 Restart=always
 
