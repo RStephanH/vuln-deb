@@ -31,11 +31,17 @@ apt-get remove -y inetutils-telnetd telnetd xinetd || true
 # ─────────────────────────────────────────────
 echo "[*] Installing vulnerable GNU InetUtils 2.7..."
 
-# Download and extract vulnerable version
+# Download and verify pinned vulnerable version
 cd /tmp
-wget https://ftp.gnu.org/gnu/inetutils/inetutils-2.7.tar.gz
-tar xzf inetutils-2.7.tar.gz
-cd inetutils-2.7
+INETUTILS_VERSION="2.7"
+INETUTILS_TARBALL="inetutils-${INETUTILS_VERSION}.tar.gz"
+INETUTILS_URL="https://ftp.gnu.org/gnu/inetutils/${INETUTILS_TARBALL}"
+INETUTILS_SHA256="REPLACE_WITH_OFFICIAL_SHA256_FOR_INETUTILS_2_7_TARBALL"
+
+wget -O "${INETUTILS_TARBALL}" "${INETUTILS_URL}"
+echo "${INETUTILS_SHA256}  ${INETUTILS_TARBALL}" | sha256sum -c -
+tar xzf "${INETUTILS_TARBALL}"
+cd "inetutils-${INETUTILS_VERSION}"
 
 # Configure, compile, and install
 ./configure --prefix=/usr/local
