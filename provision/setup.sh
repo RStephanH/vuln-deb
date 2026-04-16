@@ -42,10 +42,9 @@ cd inetutils-2.7
 make -j$(nproc)
 make install
 
-# Register telnetd with inetd config
-cat <<EOF >>/etc/inetd.conf
-telnet stream tcp nowait root /usr/local/libexec/telnetd telnetd
-EOF
+# telnetd is started later as a standalone systemd service.
+# Do not also register it with inetd, or both services will
+# compete for port 23 and one of them will fail to start.
 
 # ─────────────────────────────────────────────
 # 4. CREATE WEAK USER ACCOUNTS
