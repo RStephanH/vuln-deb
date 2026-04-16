@@ -63,10 +63,8 @@ echo "root:toor" | chpasswd
 # ─────────────────────────────────────────────
 echo "[*] Configuring PAM for telnet root access..."
 
-# Allow root login via pseudo-terminals (pts)
-echo "pts/0" >>/etc/securetty
-echo "pts/1" >>/etc/securetty
-echo "pts/2" >>/etc/securetty
+# No /etc/securetty changes are needed here because pam_securetty
+# is disabled below to allow root telnet access.
 
 # Disable pam_securetty restriction to allow root telnet access
 sed -i 's/^auth.*pam_securetty.so/#&/' /etc/pam.d/login || true
