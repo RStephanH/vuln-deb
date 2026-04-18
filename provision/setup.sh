@@ -36,10 +36,24 @@ cd /tmp
 INETUTILS_VERSION="2.7"
 INETUTILS_TARBALL="inetutils-${INETUTILS_VERSION}.tar.gz"
 INETUTILS_URL="https://ftp.gnu.org/gnu/inetutils/${INETUTILS_TARBALL}"
-INETUTILS_SHA256="REPLACE_WITH_OFFICIAL_SHA256_FOR_INETUTILS_2_7_TARBALL"
+GNU_SIGNING_KEY="A3CC9C870B9D310ABAD4CF2F51722B08FE4745A2" # inetutils maintainer
 
+# 1. Download tarball + signature
 wget -O "${INETUTILS_TARBALL}" "${INETUTILS_URL}"
-echo "${INETUTILS_SHA256}  ${INETUTILS_TARBALL}" | sha256sum -c -
+wget -O "${INETUTILS_TARBALL}.sig" "${INETUTILS_URL}.sig"
+
+# 2. Import the maintainer's public key
+gpg --keyserver keyserver.ubuntu.com --recv-keys "${GNU_SIGNING_KEY}"
+
+# 3. Verify GPG signature
+gpg --verify "${INETUTILS_TARBALL}.sig" "${INETUTILS_TARBALL}" || {
+  echo "❌ GPG verification FAILED. Aborting."
+  exit 1
+}
+
+echo "✅ GPG signature valid. Proceeding..."
+
+# 4. Extract
 tar xzf "${INETUTILS_TARBALL}"
 cd "inetutils-${INETUTILS_VERSION}"
 
