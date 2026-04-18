@@ -2,7 +2,7 @@
 
 A vulnerable Debian-based VM for practising exploitation of **CVE-2026-24061** — a critical authentication bypass in GNU InetUtils `telnetd`.
 
-> ⚠️ **Lab use only**: This VM is intentionally insecure and must only be run in an isolated, offline local environment. Never expose it to a public or shared network.
+> ⚠️ **Lab use only**: This VM is intentionally insecure and must only be run in an isolated/private local environment. Never expose it to a public or shared network; temporary outbound Internet access may be required during `vagrant up` and provisioning.
 
 ---
 
